@@ -1,0 +1,227 @@
+# 读取归档数据
+
+同步之后，数据在 `data/` 目录里。没有查询接口。更新后会出现新的 git 提交，拉取仓库即可。
+
+忽略 `.cache/`。
+
+## 文件
+
+| 路径 | 内容 |
+|---|---|
+| `data/workouts/activities.json` | 全部活动的摘要，JSON 数组 |
+| `data/workouts/fit/` | FIT 原件。文件名是佳明 activity id，例如 `438269511.fit` |
+| `data/workouts/tcx/` | TCX 原件 |
+| `data/workouts/gpx/` | GPX 原件 |
+| `data/neodb/shelf.json` | 书架标记 |
+| `data/lastfm/scrobbles.json` | 听歌记录 |
+| `data/lastfm/loved.json` | 红心歌曲 |
+| `data/lastfm/top.json` | 各时段的艺人、专辑、歌曲排行 |
+| `data/listenbrainz/listens.json` | ListenBrainz 收听记录 |
+| `data/listenbrainz/top.json` | ListenBrainz 各时段艺人、专辑组、曲目排行 |
+| `data/listenbrainz/feedback.json` | ListenBrainz 喜欢 / 不喜欢反馈 |
+| `data/listenbrainz/listening-activity.json` | ListenBrainz 按年听歌量 |
+
+## 听歌双源
+
+| 用途 | 用哪份 |
+|---|---|
+| 听了什么、何时听 | `data/listenbrainz/listens.json` |
+| 红心、时段榜（现有展示） | `data/lastfm/loved.json`、`top.json` |
+| 封面 | 先 Last.fm `image`；没有则用 ListenBrainz 的 Cover Art Archive 字段（见下） |
+
+封面回退：取 listen 的 `track_metadata.mbid_mapping.caa_release_mbid`，拼
+
+`https://coverartarchive.org/release/{caa_release_mbid}/front-250`
+
+需要更大图可用 `front-500`。没有 `caa_release_mbid` 时用占位图。
+
+佳明活动每天大约 00:00 UTC 更新，书架和听歌大约 01:00 UTC 更新。当天没有新数据时仓库不会产生新提交。
+
+## 活动摘要
+
+`data/workouts/activities.json` 是 JSON 数组，每个元素是一次活动。
+
+```json
+{
+  "run_id": 1710000000000,
+  "source": "garmin",
+  "type": "running",
+  "subtype": "generic",
+  "name": "",
+  "start_date": "2024-03-10 02:00:00",
+  "start_date_local": "2024-03-10 10:00:00",
+  "distance": 5200.0,
+  "moving_time": "0:32:10",
+  "average_speed": 2.69,
+  "average_heartrate": 148,
+  "elevation_gain": 20.0,
+  "summary_polyline": "encoded-polyline",
+  "location_country": "",
+  "streak": 1
+}
+```
+
+| 字段 | 含义 |
+|---|---|
+| `run_id` | 这条摘要的 ID，由开始时间生成。它不是 FIT 文件名 |
+| `source` | `garmin`、`tcx` 或 `gpx`，表示这条记录来自哪种文件 |
+| `type` | 运动类型 |
+| `subtype` | 运动子类型。可以是空字符串 |
+| `name` | 标题。可以是空字符串 |
+| `start_date` | UTC 时间，`YYYY-MM-DD HH:MM:SS` |
+| `start_date_local` | 北京时间，同一格式 |
+| `distance` | 距离，单位米。可以是 `0` |
+| `moving_time` | 时长，`H:MM:SS` 或带小数秒，例如 `0:27:14`、`0:58:00.962000`。展示时通常对时/分/秒向下取整 |
+| `average_speed` | 平均速度，单位米/秒 |
+| `average_heartrate` | 平均心率。可以是 `null` |
+| `elevation_gain` | 累计爬升，单位米 |
+| `summary_polyline` | 轨迹，Google encoded polyline。没有轨迹时是空字符串 |
+| `location_country` | 国家或地区。可以是空字符串 |
+| `streak` | 连续天数。可以不使用 |
+
+`source` 为 `garmin`、`tcx` 或 `gpx` 时，`type` 和 `subtype` 都用佳明 FIT 运动名，全部小写。下表是常见组合，不是完整枚举。读取方按字面使用这三个字段即可，不必只认表内取值。
+
+| `type` | `subtype` |
+|---|---|
+| `running` | `generic` |
+| `running` | `treadmill` |
+| `hiking` | `generic` |
+| `walking` | `generic` |
+| `cycling` | `generic` |
+| `cycling` | `indoor_cycling` |
+| `swimming` | `lap_swimming` |
+| `training` | `strength_training` |
+| `training` | `breathing` |
+| `training` | `jump_rope` |
+| `training` | `yoga` |
+| `training` | `generic` |
+| `fitness_equipment` | `pilates` |
+| `fitness_equipment` | `stair_climbing` |
+| `hiit` | `generic` |
+| `skateboarding` | `generic` |
+
+筛选、分组和中文名称由读取方自己决定，直接使用上面的三个字段。`summary_polyline` 为空就没有地图线。`distance` 为 `0` 时，时长看 `moving_time`。
+
+轨迹点、逐秒心率等明细在原件里：佳明用 `data/workouts/fit/` 下的文件名对应佳明 activity id；其余用 `tcx/` 和 `gpx/` 里的文件。摘要里的 `run_id` 不能用来找这些文件名。
+
+## 书架和听歌
+
+### `data/neodb/shelf.json`
+
+```json
+{
+  "source": "neodb.shelf",
+  "items": []
+}
+```
+
+`items` 的每个元素是一条书架标记。NeoDB 合并重复目录后，旧 uuid 会跳到正式条目；档案按正式 uuid 各留一条，状态优先 `complete`，其次 `progress`，再次 `wishlist`。
+
+常用字段：
+
+| 字段 | 含义 |
+|---|---|
+| `category` | `book`、`movie`、`tv`、`music`、`game`、`podcast`、`performance` |
+| `shelf_type` | `wishlist`、`progress`、`complete` |
+| `created_time` | 标记时间，ISO 8601 |
+| `rating_grade` | 评分 |
+| `comment_text` | 短评 |
+| `tags` | 标签 |
+| `item` | 作品对象，含标题、封面等 |
+
+### `data/lastfm/scrobbles.json`
+
+```json
+{
+  "source": "lastfm.scrobbles",
+  "user": "用户名",
+  "items": []
+}
+```
+
+`items` 的每个元素是一条听歌记录。歌名在 `name`。艺人名在 `artist["#text"]`，艺人 MBID 在 `artist.mbid`。专辑名在 `album["#text"]`。播放时间在 `date.uts`，是 Unix 秒数字符串。
+
+### `data/lastfm/loved.json`
+
+```json
+{
+  "source": "lastfm.loved",
+  "user": "用户名",
+  "items": []
+}
+```
+
+`items` 的每个元素是一首红心歌曲。歌名在 `name`。艺人名在 `artist.name`。红心时间在 `date.uts`，是 Unix 秒数字符串。
+
+### `data/lastfm/top.json`
+
+```json
+{
+  "source": "lastfm.top",
+  "user": "用户名",
+  "artists": {},
+  "albums": {},
+  "tracks": {}
+}
+```
+
+`artists`、`albums`、`tracks` 下面各有这些时段：
+
+`overall`、`7day`、`1month`、`3month`、`6month`、`12month`
+
+每个时段的值是一个数组，元素是 Last.fm 返回的艺人、专辑或歌曲对象。
+
+### `data/listenbrainz/listens.json`
+
+```json
+{
+  "source": "listenbrainz.listens",
+  "user": "用户名",
+  "items": []
+}
+```
+
+`items` 的每个元素是一条收听记录。时间在 `listened_at`，是 Unix 秒。艺人名在 `track_metadata.artist_name`，歌名在 `track_metadata.track_name`。专辑封面相关字段在 `track_metadata.mbid_mapping`：`caa_release_mbid`、`caa_id`。
+
+### `data/listenbrainz/top.json`
+
+```json
+{
+  "source": "listenbrainz.top",
+  "user": "用户名",
+  "artists": {},
+  "release_groups": {},
+  "recordings": {}
+}
+```
+
+`artists`、`release_groups`、`recordings` 下面各有这些时段：
+
+`this_week`、`this_month`、`this_year`、`week`、`month`、`year`、`all_time`
+
+每个时段的值是一个数组，元素是 ListenBrainz stats 返回的对象。某时段接口不可用时该数组为空。
+
+### `data/listenbrainz/feedback.json`
+
+```json
+{
+  "source": "listenbrainz.feedback",
+  "user": "用户名",
+  "items": []
+}
+```
+
+`items` 的每个元素是一条反馈。`score` 为 `1` 表示喜欢，为 `-1` 表示不喜欢。时间在 `created`，是 Unix 秒。曲目标识在 `recording_mbid` 或 `recording_msid`。
+
+### `data/listenbrainz/listening-activity.json`
+
+```json
+{
+  "source": "listenbrainz.listening-activity",
+  "user": "用户名",
+  "range": "all_time",
+  "listening_activity": []
+}
+```
+
+`listening_activity` 的每个元素是一个时间桶。年份在 `time_range`，听歌次数在 `listen_count`，起止 Unix 秒在 `from_ts` / `to_ts`。

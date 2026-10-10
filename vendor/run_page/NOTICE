@@ -1,0 +1,13 @@
+The files in this directory are copied from
+https://github.com/viazure/running_page
+commit 54c7e24e91f7d1cdd098c951de91638ff7bd8243
+and are covered by the MIT License in LICENSE
+(Copyright (c) 2025 yihong).
+
+gpxtrackposter/ includes source from Florian Pigorsch & Contributors,
+Copyright 2016-2019. Those file headers point at this LICENSE.
+
+garmin_sync.py notes that most of its code comes from
+https://github.com/cyberjunky/python-garminconnect
+
+Refresh with: python scripts/sync_run_page.py

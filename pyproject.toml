@@ -1,0 +1,18 @@
+# Ruff rules match viazure/running_page (upstream yihong0618/running_page).
+# vendor/run_page is an upstream slice; sync_run_page.py would overwrite local formatting.
+
+[tool.ruff]
+extend-exclude = ["vendor", "data", ".cache", "scripts/local"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.black]
+force-exclude = '''
+/(
+    vendor
+  | data
+  | \.cache
+  | scripts/local
+)/
+'''
