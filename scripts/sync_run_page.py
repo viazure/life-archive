@@ -28,6 +28,7 @@ VENDOR = ROOT / "vendor" / "run_page"
 # config.py stays local so archive paths are not reset to GPX_OUT/.
 COPY_PATHS = (
     "run_page/garmin_sync.py",
+    "run_page/get_garmin_secret.py",
     "run_page/tcx_sync.py",
     "run_page/gpx_sync.py",
     "run_page/fix_tcx_local_time.py",

@@ -43,10 +43,11 @@ Token、会话串等敏感信息应存入 **Secrets**，用户名存入 **Variab
 
 未配置的数据源会被跳过，不影响其他数据源运行。
 
-佳明中国会话串需在 [running_page](https://github.com/yihong0618/running_page) 仓库中生成：
+生成佳明中国会话串：
 
 ```console
-python run_page/get_garmin_secret.py "邮箱" "密码" --is-cn
+python -m pip install -r requirements.txt
+python vendor/run_page/get_garmin_secret.py "邮箱" "密码" --is-cn
 ```
 
 ## 本地配置
