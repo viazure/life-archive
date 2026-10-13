@@ -21,7 +21,21 @@
 | 佳明中国 | `GARMIN_SECRET_STRING_CN` | `data/workouts/fit/`、`data/workouts/activities.json` |
 | 本地 TCX / GPX | 无 | `data/workouts/tcx/`、`data/workouts/gpx/`、`data/workouts/activities.json` |
 
-字段说明见 [CONSUME.md](CONSUME.md)。
+## 消费端
+
+本仓库是**写入侧**：定时同步并提交 `data/`。博客、看板、脚本、AI 等**读取侧**直接消费这些文件，没有查询 API。
+
+1. `git pull` 拉取最新提交即可拿到更新；当天没有新数据时不会产生新提交。
+2. 只读 `data/`，忽略 `.cache/`。
+3. 路径与字段约定见 [CONSUME.md](CONSUME.md)。摘要优先用 JSON；轨迹明细在 `fit/` / `tcx/` / `gpx/` 原件里。
+4. 听歌有两份源：时间线用 ListenBrainz，红心与时段榜用 Last.fm；封面回退规则见 CONSUME.md。
+
+| 想看什么 | 读哪里 |
+|---|---|
+| 运动摘要 | `data/workouts/activities.json` |
+| 书架标记 | `data/neodb/shelf.json` |
+| 听歌时间线 | `data/listenbrainz/listens.json` |
+| 红心 / 时段榜 | `data/lastfm/loved.json`、`top.json` |
 
 ## 快速开始
 
