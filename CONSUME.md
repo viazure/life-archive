@@ -14,7 +14,9 @@
 
 | 路径 | 内容 |
 |---|---|
-| `data/workouts/activities.json` | 全部活动的摘要，JSON 数组 |
+| `data/health/daily.json` | 每日健康指标和当天训练。字段与设备无关 |
+| `data/workouts/activities.json` | 全部活动的摘要，JSON 数组（含轨迹与地址） |
+| `data/workouts/activities.ai.json` | 脱敏运动摘要：无轨迹、无地址。全量活动看这份 |
 | `data/workouts/fit/` | FIT 原件。文件名是佳明 activity id，例如 `438269511.fit` |
 | `data/workouts/tcx/` | TCX 原件 |
 | `data/workouts/gpx/` | GPX 原件 |
@@ -41,7 +43,7 @@
 
 需要更大图可用 `front-500`。没有 `caa_release_mbid` 时用占位图。
 
-佳明活动每天大约 00:00 UTC 更新，书架和听歌大约 01:00 UTC 更新。当天没有新数据时仓库不会产生新提交。
+佳明活动和每日健康大约 00:00 UTC 更新，书架和听歌大约 01:00 UTC 更新。当天没有新数据时仓库不会产生新提交。
 
 ## 活动摘要
 
@@ -109,6 +111,93 @@
 筛选、分组和中文名称由读取方自己决定，直接使用上面的三个字段。`summary_polyline` 为空就没有地图线。`distance` 为 `0` 时，时长看 `moving_time`。
 
 轨迹点、逐秒心率等明细在原件里：佳明用 `data/workouts/fit/` 下的文件名对应佳明 activity id；其余用 `tcx/` 和 `gpx/` 里的文件。摘要里的 `run_id` 不能用来找这些文件名。
+
+### AI 分析用脱敏摘要
+
+看某一天的恢复、负荷和当天练了什么，读 `data/health/daily.json`。要全量活动列表时再读 `data/workouts/activities.ai.json`。不要把 `activities.json` 或 `fit/` / `tcx/` / `gpx/` 原件交给外部模型。
+
+`activities.ai.json` 也是 JSON 数组，与完整摘要同一批活动、同一排序。保留上表中的训练与身体指标（含 `average_heartrate`、距离、时长、速度、爬升、本地开始时间等），不含 `summary_polyline` 和 `location_country`。字段名、单位与上表相同。由 `scripts/export_activities.py` 与完整摘要一同写出。
+
+## 每日健康
+
+`data/health/daily.json` 是消费契约。健康指标和当天训练已经在同一行里，字段名是本仓库自己的，不随设备接口变化。这份日档案只在私有仓库，公开归档不包含它。
+
+```json
+{
+  "source": "health.daily",
+  "items": []
+}
+```
+
+`items` 按 `date` 升序，一天一行。日期是北京时间，`YYYY-MM-DD`。有健康指标或有训练的日期都会留下。只有训练、还没有健康数据的日子，健康字段是 `null`。
+
+`metrics_source` 说明这行健康指标从哪来。目前是 `garmin`。以后换成别的设备，新数据仍用下面这些字段，旧行保持原来的 `metrics_source`。读取方忽略不认识的取值即可。
+
+没有上报的值是 `null`。`sleep`、`hrv`、`training` 这三个对象一直在，里面的字段可以是 `null`。
+
+| 字段 | 含义 |
+|---|---|
+| `date` | 北京时间日期 |
+| `metrics_source` | 健康指标来源。可以是 `null` |
+| `steps` | 步数 |
+| `distance_m` | 当日距离，米 |
+| `active_calories` | 活动消耗，千卡 |
+| `total_calories` | 总消耗，千卡 |
+| `intensity_minutes` | 强度分钟。中等强度按 1 计，剧烈强度按 2 计 |
+| `resting_hr` | 静息心率 |
+| `min_hr` | 最低心率 |
+| `max_hr` | 最高心率 |
+| `avg_stress` | 平均压力 |
+| `body_battery_high` | 当日 Body Battery 最高 |
+| `body_battery_low` | 当日 Body Battery 最低 |
+| `body_battery_charged` | 当日 Body Battery 充电量 |
+| `body_battery_drained` | 当日 Body Battery 消耗量 |
+
+`sleep`：
+
+| 字段 | 含义 |
+|---|---|
+| `start_local` | 入睡，北京时间，`YYYY-MM-DD HH:MM:SS` |
+| `end_local` | 醒来，同一格式 |
+| `duration_s` | 睡眠秒数 |
+| `deep_s` | 深睡秒数 |
+| `light_s` | 浅睡秒数 |
+| `rem_s` | REM 秒数 |
+| `awake_s` | 清醒秒数 |
+| `awake_count` | 醒来次数 |
+| `score` | 睡眠分 |
+| `qualifier` | 睡眠分档，例如 `GOOD` |
+| `avg_spo2` | 睡眠平均血氧 |
+| `avg_respiration` | 睡眠平均呼吸 |
+| `avg_stress` | 睡眠中平均压力 |
+| `need_min` | 睡眠需求，分钟 |
+| `body_battery_change` | 过夜 Body Battery 变化 |
+| `skin_temp_c` | 皮温相对个人基线的偏差，摄氏度 |
+
+`hrv`：
+
+| 字段 | 含义 |
+|---|---|
+| `last_night_avg` | 昨夜 HRV 均值 |
+| `last_night_5min_high` | 昨夜 5 分钟最高 |
+| `weekly_avg` | 7 日均值 |
+| `status` | 状态，例如 `BALANCED` |
+| `baseline_low_upper` | 偏低区间的上沿 |
+| `baseline_balanced_low` | 平衡区间下沿 |
+| `baseline_balanced_upper` | 平衡区间上沿 |
+
+`training`：
+
+| 字段 | 含义 |
+|---|---|
+| `readiness` | 训练准备度分数 |
+| `recovery_hours` | 恢复时间，小时 |
+| `status` | 训练状态 |
+| `vo2_max` | VO2 max |
+
+`workouts` 是当天训练的短投影，按 `start_date_local` 的日期挂上，含 `tcx` / `gpx`，不限于佳明。字段与活动摘要里对应的列相同：`run_id`、`source`、`type`、`subtype`、`name`、`start_date_local`、`distance`、`moving_time`、`average_speed`、`average_heartrate`、`elevation_gain`。没有轨迹和地址。
+
+全量活动、以后新增的活动字段，以及轨迹，仍以 `activities.ai.json` / `activities.json` 和原始文件为准。`workouts` 只回答「这一天练了什么」。活动导出之后会重新挂一遍。
 
 ## 书架和听歌
 

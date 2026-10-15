@@ -25,6 +25,7 @@ TOP = Path("data/lastfm/top.json")
 LB_TOP = Path("data/listenbrainz/top.json")
 LB_ACTIVITY = Path("data/listenbrainz/listening-activity.json")
 ACTIVITIES = Path("data/workouts/activities.json")
+HEALTH = Path("data/health/daily.json")
 
 
 def staged_names() -> set[str]:
@@ -106,6 +107,9 @@ def garmin_subject(names: set[str], added: set[str]) -> str:
     activity = list_part(ACTIVITIES, "运动", names)
     if activity:
         parts.append(activity)
+    health = list_part(HEALTH, "健康", names)
+    if health:
+        parts.append(health)
     extra = sorted(
         name
         for name in added

@@ -18,7 +18,7 @@
 | NeoDB | `NEODB_TOKEN` | `data/neodb/shelf.json` |
 | Last.fm | `LASTFM_API_KEY`、`LASTFM_USER` | `data/lastfm/scrobbles.json`、`top.json`、`loved.json` |
 | ListenBrainz | `LISTENBRAINZ_USER` | `data/listenbrainz/listens.json`、`top.json`、`feedback.json`、`listening-activity.json` |
-| 佳明中国 | `GARMIN_SECRET_STRING_CN` | `data/workouts/fit/`、`data/workouts/activities.json` |
+| 佳明中国 | `GARMIN_SECRET_STRING_CN` | `data/workouts/fit/`、`data/workouts/activities.json`、`data/health/daily.json` |
 | 本地 TCX / GPX | 无 | `data/workouts/tcx/`、`data/workouts/gpx/`、`data/workouts/activities.json` |
 
 ## 消费端
@@ -32,7 +32,8 @@
 
 | 想看什么 | 读哪里 |
 |---|---|
-| 运动摘要 | `data/workouts/activities.json` |
+| 某一天的恢复、负荷和当天训练 | `data/health/daily.json` |
+| 全量运动摘要 | `data/workouts/activities.ai.json`（无轨迹、无地址） |
 | 书架标记 | `data/neodb/shelf.json` |
 | 听歌时间线 | `data/listenbrainz/listens.json` |
 | 红心 / 时段榜 | `data/lastfm/loved.json`、`top.json` |
@@ -124,14 +125,23 @@ python scripts/listenbrainz.py
 | `scripts/lastfm.py` | 可用 `--only scrobbles`、`top` 或 `loved` 限定内容 |
 | `scripts/listenbrainz.py` | 可用 `--only listens`、`top`、`feedback` 或 `activity` 限定内容 |
 | `vendor/run_page/garmin_sync.py` | 使用 `--is-cn --fit` 从佳明中国下载 FIT |
-| `scripts/export_activities.py` | 从 FIT / 缓存写出 `data/workouts/activities.json` |
+| `scripts/export_activities.py` | 从 FIT / 缓存写出 `activities.json` 和脱敏的 `activities.ai.json` |
+| `scripts/garmin_health.py` | 拉取每日健康指标，写出 `data/health/daily.json` |
+| `scripts/health_daily.py` | 把当天训练挂到日档案；`--self-check` 不联网 |
 
 ### 佳明中国
 
 ```console
+python scripts/health_daily.py --self-check
+python scripts/garmin_health.py --self-check
 python vendor/run_page/garmin_sync.py "会话串" --is-cn --fit
 python scripts/export_activities.py
+python scripts/garmin_health.py "会话串" --is-cn
 ```
+
+会话串也可以放在环境变量 `GARMIN_SECRET_STRING_CN` 里。日档案按北京时间一天一行，字段见 [CONSUME.md](CONSUME.md)。近 90 天里还没有健康指标的日期会继续补，同时重拉最近 14 天。
+
+本公开仓库不收录任何人的 `data/health/daily.json`。在你自己的仓库里跑同步时，工作流会写入并提交这份文件。运动归档先提交；健康同步失败不会挡住这次运动提交。
 
 ### TCX / GPX
 

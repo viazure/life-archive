@@ -7,6 +7,8 @@ Rows already in the archive that do not match a FIT run_id are kept, so
 TCX/GPX imports are not rewritten into Garmin types. New rows are taken from
 .cache/activities.json when their run_id is not already present. source is
 the ingest path the script can see: garmin, tcx, or gpx — not the device brand.
+
+Also writes activities.ai.json: same metrics without polyline or address fields.
 """
 
 from __future__ import annotations
@@ -25,11 +27,27 @@ FIT_DIR = DATA / "workouts" / "fit"
 TCX_DIR = DATA / "workouts" / "tcx"
 GPX_DIR = DATA / "workouts" / "gpx"
 DEST = DATA / "workouts" / "activities.json"
+AI_DEST = DATA / "workouts" / "activities.ai.json"
 CACHE_ACTIVITIES = CACHE / "activities.json"
 TCX_NS = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
 FILE_SOURCES = {"tcx", "gpx"}
 LOCAL_TZ = ZoneInfo("Asia/Shanghai")
 SEMICIRCLE = 11930465
+AI_FIELDS = (
+    "average_heartrate",
+    "average_speed",
+    "distance",
+    "elevation_gain",
+    "moving_time",
+    "name",
+    "run_id",
+    "source",
+    "start_date",
+    "start_date_local",
+    "streak",
+    "subtype",
+    "type",
+)
 
 
 def _fit_name(value) -> str:
@@ -174,6 +192,11 @@ def _as_file_row(row: dict, sources: dict[int, str]) -> dict:
     return copied
 
 
+def for_ai(items: list[dict]) -> list[dict]:
+    """Keep training metrics; drop route polyline and location text."""
+    return [{key: row[key] for key in AI_FIELDS if key in row} for row in items]
+
+
 def merge(
     existing: list[dict],
     fit_rows: list[dict],
@@ -232,12 +255,14 @@ def main() -> None:
     sources = file_sources()
     items = merge(load_list(DEST), fit_rows, cache_rows, sources)
     dump(DEST, items)
+    dump(AI_DEST, for_ai(items))
     counts = {}
     for row in items:
         key = row.get("source") or "unset"
         counts[key] = counts.get(key, 0) + 1
     summary = ", ".join(f"{count} {name}" for name, count in sorted(counts.items()))
     print(f"workouts {len(items)} ({len(fit_rows)} from FIT; {summary})")
+    print(f"wrote {AI_DEST.relative_to(DATA.parent)}")
 
 
 if __name__ == "__main__":
