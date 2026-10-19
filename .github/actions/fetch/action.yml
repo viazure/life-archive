@@ -1,0 +1,57 @@
+name: fetch archives
+description: Pull NeoDB, Last.fm, and ListenBrainz into data/ and commit
+
+runs:
+  using: composite
+  steps:
+      - name: Resolve code root
+        id: roots
+        shell: bash
+        run: |
+          code_root="$(cd "${{ github.action_path }}/../.." && pwd)"
+          echo "code_root=$code_root" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Fetch NeoDB
+        shell: bash
+        env:
+          NEODB_TOKEN: ${{ env.NEODB_TOKEN }}
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/scripts/neodb.py"
+
+      - name: Fetch Last.fm
+        if: always()
+        shell: bash
+        env:
+          LASTFM_API_KEY: ${{ env.LASTFM_API_KEY }}
+          LASTFM_USER: ${{ env.LASTFM_USER }}
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/scripts/lastfm.py"
+
+      - name: Fetch ListenBrainz
+        if: always()
+        shell: bash
+        env:
+          LISTENBRAINZ_USER: ${{ env.LISTENBRAINZ_USER }}
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/scripts/listenbrainz.py"
+
+      - name: Commit data
+        if: always()
+        shell: bash
+        env:
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/neodb data/lastfm data/listenbrainz
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "$(python "${{ steps.roots.outputs.code_root }}/scripts/commit_message.py" fetch)"
+            git push
+          fi

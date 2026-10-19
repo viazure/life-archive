@@ -16,7 +16,7 @@
 |---|---|
 | `data/health/daily.json` | 每日健康指标和当天训练。字段与设备无关 |
 | `data/workouts/activities.json` | 全部活动的摘要，JSON 数组（含轨迹与地址） |
-| `data/workouts/activities.ai.json` | 脱敏运动摘要：无轨迹、无地址。全量活动看这份 |
+| `data/workouts/activities.redacted.json` | 脱敏运动摘要：无轨迹、无地址。全量活动看这份 |
 | `data/workouts/fit/` | FIT 原件。文件名是佳明 activity id，例如 `438269511.fit` |
 | `data/workouts/tcx/` | TCX 原件 |
 | `data/workouts/gpx/` | GPX 原件 |
@@ -114,9 +114,9 @@
 
 ### AI 分析用脱敏摘要
 
-看某一天的恢复、负荷和当天练了什么，读 `data/health/daily.json`。要全量活动列表时再读 `data/workouts/activities.ai.json`。不要把 `activities.json` 或 `fit/` / `tcx/` / `gpx/` 原件交给外部模型。
+看某一天的恢复、负荷和当天练了什么，读 `data/health/daily.json`。要全量活动列表时再读 `data/workouts/activities.redacted.json`。不要把 `activities.json` 或 `fit/` / `tcx/` / `gpx/` 原件交给外部模型。
 
-`activities.ai.json` 也是 JSON 数组，与完整摘要同一批活动、同一排序。保留上表中的训练与身体指标（含 `average_heartrate`、距离、时长、速度、爬升、本地开始时间等），不含 `summary_polyline` 和 `location_country`。字段名、单位与上表相同。由 `scripts/export_activities.py` 与完整摘要一同写出。
+`activities.redacted.json` 也是 JSON 数组，与完整摘要同一批活动、同一排序。保留上表中的训练与身体指标（含 `average_heartrate`、距离、时长、速度、爬升、本地开始时间等），不含 `summary_polyline` 和 `location_country`。字段名、单位与上表相同。由 `scripts/export_activities.py` 与完整摘要一同写出。
 
 ## 每日健康
 
@@ -197,7 +197,7 @@
 
 `workouts` 是当天训练的短投影，按 `start_date_local` 的日期挂上，含 `tcx` / `gpx`，不限于佳明。字段与活动摘要里对应的列相同：`run_id`、`source`、`type`、`subtype`、`name`、`start_date_local`、`distance`、`moving_time`、`average_speed`、`average_heartrate`、`elevation_gain`。没有轨迹和地址。
 
-全量活动、以后新增的活动字段，以及轨迹，仍以 `activities.ai.json` / `activities.json` 和原始文件为准。`workouts` 只回答「这一天练了什么」。活动导出之后会重新挂一遍。
+全量活动、以后新增的活动字段，以及轨迹，仍以 `activities.redacted.json` / `activities.json` 和原始文件为准。`workouts` 只回答「这一天练了什么」。活动导出之后会重新挂一遍。
 
 ## 书架和听歌
 

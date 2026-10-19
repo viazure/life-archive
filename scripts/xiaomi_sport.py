@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -12,7 +13,16 @@ TCX_NS = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
 STEM_RE = re.compile(r"^\d{8}(.+?)(?:_\d+)?$")
 Z_TIME_RE = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)[Zz]")
 FREESTYLE_HR_CUTOFF = 110
-_LOCAL_OVERRIDE = Path(__file__).resolve().parent / "local" / "stem_override.py"
+
+
+def _override_path() -> Path:
+    env = os.environ.get("LIFE_DATA_ROOT", "").strip()
+    if env:
+        return Path(env).expanduser().resolve() / "scripts" / "local" / "stem_override.py"
+    return Path(__file__).resolve().parent / "local" / "stem_override.py"
+
+
+_LOCAL_OVERRIDE = _override_path()
 
 
 def _load_stem_override() -> dict[str, tuple[str, str, str]]:

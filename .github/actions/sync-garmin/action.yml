@@ -1,0 +1,123 @@
+name: sync garmin
+description: Sync Garmin CN workouts and health into data/ and commit
+
+runs:
+  using: composite
+  steps:
+      - name: Resolve code root
+        id: roots
+        shell: bash
+        run: |
+          code_root="$(cd "${{ github.action_path }}/../.." && pwd)"
+          echo "code_root=$code_root" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Check Garmin secret
+        id: garmin
+        shell: bash
+        env:
+          GARMIN_SECRET_STRING_CN: ${{ env.GARMIN_SECRET_STRING_CN }}
+        run: |
+          if [ -z "$GARMIN_SECRET_STRING_CN" ]; then
+            echo "GARMIN_SECRET_STRING_CN unset, skip garmin"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        run: pip install -r "${{ steps.roots.outputs.code_root }}/requirements.txt"
+
+      - name: Install Cloudflare WARP
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        run: |
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update && sudo apt-get install -y cloudflare-warp
+
+      - name: Connect Cloudflare WARP
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        run: |
+          warp-cli --accept-tos registration new
+          warp-cli --accept-tos mode warp
+          warp-cli --accept-tos connect
+          sleep 3
+          echo "WARP status:"
+          warp-cli --accept-tos status
+          echo "IP info:"
+          curl -s https://cloudflare.com/cdn-cgi/trace | grep -E "ip|warp"
+
+      - name: Cache sync workspace
+        if: steps.garmin.outputs.configured == 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            .cache/data.db
+            .cache/activities.json
+            .cache/imported.json
+          key: workouts-db-${{ github.run_id }}
+          restore-keys: |
+            workouts-db-
+
+      - name: Sync Garmin
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          GARMIN_SECRET_STRING_CN: ${{ env.GARMIN_SECRET_STRING_CN }}
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/vendor/run_page/garmin_sync.py" "$GARMIN_SECRET_STRING_CN" --is-cn --fit
+
+      - name: Export activities
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/scripts/export_activities.py"
+
+      - name: Commit workouts archive
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/workouts
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "$(python "${{ steps.roots.outputs.code_root }}/scripts/commit_message.py" garmin)"
+            git push
+          fi
+
+      - name: Sync Garmin health
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          GARMIN_SECRET_STRING_CN: ${{ env.GARMIN_SECRET_STRING_CN }}
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: python "${{ steps.roots.outputs.code_root }}/scripts/garmin_health.py" --is-cn
+
+      - name: Commit health archive
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/health
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "$(python "${{ steps.roots.outputs.code_root }}/scripts/commit_message.py" garmin)"
+            git push
+          fi

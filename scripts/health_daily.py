@@ -14,7 +14,7 @@ from jsonio import DATA, archive_envelope, dump, load_list, log
 
 SOURCE = "health.daily"
 DEST = DATA / "health" / "daily.json"
-ACTIVITIES = DATA / "workouts" / "activities.ai.json"
+ACTIVITIES = DATA / "workouts" / "activities.redacted.json"
 
 METRIC_FIELDS = (
     "active_calories",

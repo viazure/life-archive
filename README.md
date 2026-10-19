@@ -1,15 +1,49 @@
 # life-archive
 
-个人生活数据归档工具。通过 GitHub Actions 定时从各数据源拉取记录，写入 `data/` 并提交到你自己的仓库。
+个人生活数据归档工具。脚本与定时同步逻辑维护在本仓库；数据可写在本仓（fork）或私有数据仓。
 
 豆瓣和 Bangumi 的标记需先同步到 NeoDB，相关代码见 [viazure/douban-backup](https://github.com/viazure/douban-backup)；本仓库只从 NeoDB 拉取数据。
 
 `vendor/run_page/` 包含 [yihong0618/running_page](https://github.com/yihong0618/running_page) 的部分代码，本仓库仅使用其中的佳明中国、TCX 和 GPX 同步功能。Strava、Nike、Keep 等其他运动平台的同步方式见原仓库。
 
 > [!WARNING]
-> `data/` 可能包含个人活动轨迹和生活记录。公开 fork 中同步的数据也会公开；如需保护隐私，请改用私有仓库。
+> `data/` 可能包含个人活动轨迹和生活记录。公开 fork 中同步的数据也会公开；需要隐私时请用下面的「私有数据仓」方式。
 
 下文统一使用 `python`；如果系统只提供 `python3`，请自行替换。
+
+## 两种用法
+
+| 场景 | 做法 |
+|---|---|
+| 新人 / 愿意公开数据 | Fork 本仓库，在 fork 里配 Secrets，跑 Actions；数据写在 fork 的 `data/` |
+| 私有数据 + 公开脚本 | 私有仓只存 `data/` 与密钥；用 git submodule 引用本仓，并设置 `LIFE_DATA_ROOT` 指向私有仓根目录 |
+
+`viazure/life-archive` 本身不收录个人档案；CI 会拒绝跟踪 `data/` 下除 `.gitkeep` 以外的文件。
+
+### 私有数据仓（submodule）
+
+在私有仓根目录：
+
+```console
+git submodule add https://github.com/viazure/life-archive.git tools/life-archive
+git submodule update --init --recursive
+```
+
+本地同步前设置数据根（PowerShell）：
+
+```powershell
+$env:LIFE_DATA_ROOT = (Resolve-Path .).Path
+python tools/life-archive/scripts/neodb.py
+```
+
+未设置 `LIFE_DATA_ROOT` 时，脚本把数据写到代码仓根下的 `data/`（fork 用法）。若代码仓的 `origin` 是 `viazure/life-archive`，且数据根落在这个检出里，写入会被拒绝，避免 submodule 误把档案写进公开检出。
+
+GitHub Actions：checkout 时带 `submodules: true`，设置 `LIFE_DATA_ROOT=${{ github.workspace }}`，再调用：
+
+- `./tools/life-archive/.github/actions/fetch`
+- `./tools/life-archive/.github/actions/sync-garmin`
+
+Secrets / Variables 配在私有仓，不要写进本仓。
 
 ## 支持的数据源
 
@@ -33,14 +67,14 @@
 | 想看什么 | 读哪里 |
 |---|---|
 | 某一天的恢复、负荷和当天训练 | `data/health/daily.json` |
-| 全量运动摘要 | `data/workouts/activities.ai.json`（无轨迹、无地址） |
+| 全量运动摘要（无轨迹、无地址） | `data/workouts/activities.redacted.json` |
 | 书架标记 | `data/neodb/shelf.json` |
 | 听歌时间线 | `data/listenbrainz/listens.json` |
 | 红心 / 时段榜 | `data/lastfm/loved.json`、`top.json` |
 
-## 快速开始
+## 快速开始（fork）
 
-1. 如果愿意公开自己的数据，可直接 fork 本仓库；如需保护隐私，请将代码复制到新建的私有仓库。
+1. Fork 本仓库（公开数据）或建私有仓并用 submodule（见上）。
 2. 打开 **Actions**；如果出现提示，请启用 workflows。
 3. 在 **Settings → Actions → General → Workflow permissions** 中选择 **Read and write permissions**。
 4. 按下表配置实际需要的 Secrets 和 Variables。
@@ -125,7 +159,7 @@ python scripts/listenbrainz.py
 | `scripts/lastfm.py` | 可用 `--only scrobbles`、`top` 或 `loved` 限定内容 |
 | `scripts/listenbrainz.py` | 可用 `--only listens`、`top`、`feedback` 或 `activity` 限定内容 |
 | `vendor/run_page/garmin_sync.py` | 使用 `--is-cn --fit` 从佳明中国下载 FIT |
-| `scripts/export_activities.py` | 从 FIT / 缓存写出 `activities.json` 和脱敏的 `activities.ai.json` |
+| `scripts/export_activities.py` | 从 FIT / 缓存写出 `activities.json` 和脱敏的 `activities.redacted.json` |
 | `scripts/garmin_health.py` | 拉取每日健康指标，写出 `data/health/daily.json` |
 | `scripts/health_daily.py` | 把当天训练挂到日档案；`--self-check` 不联网 |
 

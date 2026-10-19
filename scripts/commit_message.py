@@ -8,11 +8,20 @@ changes that you cannot see from `git log` alone.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+CODE_ROOT = Path(__file__).resolve().parents[1]
+
+
+def resolve_data_root() -> Path:
+    env = os.environ.get("LIFE_DATA_ROOT", "").strip()
+    return Path(env).expanduser().resolve() if env else CODE_ROOT.resolve()
+
+
+ROOT = resolve_data_root()
 
 FETCH_LISTS = (
     (Path("data/lastfm/scrobbles.json"), "听歌"),

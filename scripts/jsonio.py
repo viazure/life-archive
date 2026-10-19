@@ -1,23 +1,92 @@
 #!/usr/bin/env python3
-"""Shared pretty JSON and HTTP helpers for life-data fetchers."""
+"""Shared pretty JSON and HTTP helpers for life-archive fetchers."""
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+CODE_ROOT = Path(__file__).resolve().parents[1]
+CANONICAL_PUBLIC = "viazure/life-archive"
+UA = "life-archive/1.0"
+
+
+def _normalize_remote(url: str) -> str:
+    text = url.strip()
+    if text.endswith(".git"):
+        text = text[:-4]
+    if text.startswith("git@"):
+        host_path = text.split("@", 1)[1]
+        host, path = host_path.split(":", 1)
+        text = f"https://{host}/{path}"
+    text = text.removeprefix("https://").removeprefix("http://")
+    if text.startswith("github.com/"):
+        text = text[len("github.com/") :]
+    return text.lower()
+
+
+def _git_remote_url(repo: Path) -> str | None:
+    if not (repo / ".git").exists() and not (repo / ".git").is_file():
+        return None
+    proc = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
+
+
+def _is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_data_root() -> Path:
+    """Data and .cache live under LIFE_DATA_ROOT when set, else the code repo."""
+    env = os.environ.get("LIFE_DATA_ROOT", "").strip()
+    return Path(env).expanduser().resolve() if env else CODE_ROOT.resolve()
+
+
+def archives_blocked(root: Path | None = None) -> bool:
+    """True when writing would land inside the canonical public checkout."""
+    target = (root or resolve_data_root()).resolve()
+    origin = _git_remote_url(CODE_ROOT)
+    return bool(
+        origin
+        and _normalize_remote(origin) == CANONICAL_PUBLIC
+        and _is_within(target, CODE_ROOT)
+    )
+
+
+def assert_can_write_archives() -> None:
+    if archives_blocked():
+        raise SystemExit(
+            "refusing to write archives into viazure/life-archive; "
+            "set LIFE_DATA_ROOT to a private data checkout, or fork this repo"
+        )
+
+
+ROOT = resolve_data_root()
 DATA = ROOT / "data"
 CACHE = ROOT / ".cache"
-UA = "life-data/1.0"
 
 
 def dump(path: Path, obj) -> None:
+    assert_can_write_archives()
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     path.write_text(text, encoding="utf-8")
@@ -132,6 +201,7 @@ def self_check() -> None:
     )
     if leaked != "ws.audioscrobbler.com/2.0/":
         raise SystemExit(f"request target leaked query: {leaked}")
+    print(f"data root: {ROOT}")
     print("self-check ok")
 
 

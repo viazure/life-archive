@@ -438,6 +438,9 @@ if __name__ == "__main__":
     if secret_string is None:
         print("Missing argument nor valid configuration file")
         sys.exit(1)
+    from config import assert_can_write_archives
+
+    assert_can_write_archives()
     folder = FOLDER_DICT.get(file_type, "gpx")
     # make gpx or tcx dir
     if not os.path.exists(folder):

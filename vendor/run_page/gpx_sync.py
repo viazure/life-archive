@@ -4,10 +4,11 @@ If you do not want bind any account
 Only the gpx files in GPX_OUT sync
 """
 
-from config import GPX_FOLDER, JSON_FILE, SQL_FILE
+from config import GPX_FOLDER, JSON_FILE, SQL_FILE, assert_can_write_archives
 
 from utils import make_activities_file
 
 if __name__ == "__main__":
+    assert_can_write_archives()
     print("only sync gpx files in data/workouts/gpx")
     make_activities_file(SQL_FILE, GPX_FOLDER, JSON_FILE)

@@ -22,3 +22,28 @@ jobs:
 
       - name: Lint with Ruff
         run: ruff check scripts
+
+  no_private_data:
+    if: github.repository == 'viazure/life-archive'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Refuse tracked archives in data/
+        run: |
+          set -euo pipefail
+          bad="$(git ls-files 'data' | grep -v '/\.gitkeep$' || true)"
+          if [ -n "$bad" ]; then
+            echo "tracked files under data/ must be .gitkeep only:"
+            echo "$bad"
+            exit 1
+          fi
+          if git ls-files | grep -E '\.(fit|tcx|gpx)$'; then
+            echo "workout originals must not be tracked"
+            exit 1
+          fi
+          if git ls-files 'data' | grep -E '\.json$'; then
+            echo "archive JSON must not be tracked"
+            exit 1
+          fi
+          echo "data/ is clean"
