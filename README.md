@@ -195,6 +195,8 @@ python scripts/export_activities.py
 | `sync-garmin.yml` | 每天 00:00 UTC（北京时间 08:00） |
 | `fetch.yml` | 每天 01:00 UTC（北京时间 09:00） |
 
+这两个 workflow 只在 **fork** 或私有数据仓里执行；上游 `viazure/life-archive` 会跳过（公开仓只维护脚本与 composite action）。私有仓也可不启用这两份文件，改为自行调度并调用 `.github/actions/fetch` / `sync-garmin`。
+
 当天没有新数据时不会产生新提交。
 
 ## 维护

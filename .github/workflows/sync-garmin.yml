@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   sync:
+    # Upstream public repo is scripts-only; run sync on forks / private data repos.
+    if: github.repository != 'viazure/life-archive'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
