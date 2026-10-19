@@ -18,7 +18,9 @@ FREESTYLE_HR_CUTOFF = 110
 def _override_path() -> Path:
     env = os.environ.get("LIFE_DATA_ROOT", "").strip()
     if env:
-        return Path(env).expanduser().resolve() / "scripts" / "local" / "stem_override.py"
+        return (
+            Path(env).expanduser().resolve() / "scripts" / "local" / "stem_override.py"
+        )
     return Path(__file__).resolve().parent / "local" / "stem_override.py"
 
 
