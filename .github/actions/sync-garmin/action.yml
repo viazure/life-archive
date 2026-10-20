@@ -8,7 +8,7 @@ runs:
         id: roots
         shell: bash
         run: |
-          code_root="$(cd "${{ github.action_path }}/../.." && pwd)"
+          code_root="$(cd "${{ github.action_path }}/../../.." && pwd)"
           echo "code_root=$code_root" >> "$GITHUB_OUTPUT"
 
       - name: Setup Python
