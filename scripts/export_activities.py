@@ -8,7 +8,7 @@ TCX/GPX imports are not rewritten into Garmin types. New rows are taken from
 .cache/activities.json when their run_id is not already present. source is
 the ingest path the script can see: garmin, tcx, or gpx — not the device brand.
 
-Also writes activities.redacted.json: same metrics without polyline or address fields.
+Also writes activities.redacted.json: same metrics without polyline or address fields; name is replaced with a generic type/subtype label.
 """
 
 from __future__ import annotations
@@ -48,6 +48,42 @@ REDACTED_FIELDS = (
     "subtype",
     "type",
 )
+
+# Redacted exports replace free-text titles (often place/route names) with
+# sport labels. Full activities.json still keeps the original name.
+GENERIC_TYPE_NAMES = {
+    "running": "跑步",
+    "hiking": "徒步",
+    "walking": "步行",
+    "cycling": "骑行",
+    "swimming": "游泳",
+    "training": "训练",
+    "fitness_equipment": "器械训练",
+    "hiit": "HIIT",
+    "skateboarding": "滑板",
+}
+GENERIC_SUBTYPE_NAMES = {
+    "treadmill": "跑步机",
+    "indoor_cycling": "室内骑行",
+    "lap_swimming": "泳池游泳",
+    "strength_training": "力量训练",
+    "breathing": "呼吸训练",
+    "jump_rope": "跳绳",
+    "yoga": "瑜伽",
+    "pilates": "普拉提",
+    "stair_climbing": "爬楼",
+}
+
+
+def generic_activity_name(row: dict) -> str:
+    """Stable label from type/subtype; never the original title."""
+    subtype = str(row.get("subtype") or "").strip().lower()
+    sport = str(row.get("type") or "").strip().lower()
+    if subtype and subtype != "generic" and subtype in GENERIC_SUBTYPE_NAMES:
+        return GENERIC_SUBTYPE_NAMES[subtype]
+    if sport in GENERIC_TYPE_NAMES:
+        return GENERIC_TYPE_NAMES[sport]
+    return sport
 
 
 def _fit_name(value) -> str:
@@ -193,8 +229,14 @@ def _as_file_row(row: dict, sources: dict[int, str]) -> dict:
 
 
 def redacted(items: list[dict]) -> list[dict]:
-    """Keep training metrics; drop route polyline and location text."""
-    return [{key: row[key] for key in REDACTED_FIELDS if key in row} for row in items]
+    """Keep training metrics; drop route/location; replace name with sport label."""
+    out = []
+    for row in items:
+        copied = {key: row[key] for key in REDACTED_FIELDS if key in row}
+        if "name" in copied:
+            copied["name"] = generic_activity_name(row)
+        out.append(copied)
+    return out
 
 
 def merge(

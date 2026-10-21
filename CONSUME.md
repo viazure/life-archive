@@ -75,7 +75,7 @@
 | `source` | `garmin`、`tcx` 或 `gpx`，表示这条记录来自哪种文件 |
 | `type` | 运动类型 |
 | `subtype` | 运动子类型。可以是空字符串 |
-| `name` | 标题。可以是空字符串 |
+| `name` | 标题。全量 `activities.json` 可能含路线/地名；`activities.redacted.json` 与 `daily.json` 的 workouts 投影会改成按 type/subtype 的通用名（如跑步、力量训练） |
 | `start_date` | UTC 时间，`YYYY-MM-DD HH:MM:SS` |
 | `start_date_local` | 北京时间，同一格式 |
 | `distance` | 距离，单位米。可以是 `0` |
@@ -116,7 +116,7 @@
 
 看某一天的恢复、负荷和当天练了什么，读 `data/health/daily.json`。要全量活动列表时再读 `data/workouts/activities.redacted.json`。不要把 `activities.json` 或 `fit/` / `tcx/` / `gpx/` 原件交给外部模型。
 
-`activities.redacted.json` 也是 JSON 数组，与完整摘要同一批活动、同一排序。保留上表中的训练与身体指标（含 `average_heartrate`、距离、时长、速度、爬升、本地开始时间等），不含 `summary_polyline` 和 `location_country`。字段名、单位与上表相同。由 `scripts/export_activities.py` 与完整摘要一同写出。
+`activities.redacted.json` 也是 JSON 数组，与完整摘要同一批活动、同一排序。保留上表中的训练与身体指标（含 `average_heartrate`、距离、时长、速度、爬升、本地开始时间等），不含 `summary_polyline` 和 `location_country`；`name` 改为按运动类型的通用标题，不保留原始标题。字段名、单位与上表相同。由 `scripts/export_activities.py` 与完整摘要一同写出。
 
 ## 每日健康
 
