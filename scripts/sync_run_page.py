@@ -36,6 +36,7 @@ COPY_PATHS = (
     "run_page/utils.py",
     "run_page/polyline_processor.py",
     "run_page/synced_data_file_logger.py",
+    "run_page/gen_splits.py",
     "run_page/generator/__init__.py",
     "run_page/generator/db.py",
     "run_page/gpxtrackposter/track.py",

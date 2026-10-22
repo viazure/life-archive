@@ -20,6 +20,7 @@
 | `data/workouts/fit/` | FIT 原件。文件名是佳明 activity id，例如 `438269511.fit` |
 | `data/workouts/tcx/` | TCX 原件 |
 | `data/workouts/gpx/` | GPX 原件 |
+| `data/workouts/splits/` | 每场活动的分段摘要 JSON（按 `run_id` 命名，无坐标、无逐秒序列） |
 | `data/neodb/shelf.json` | 书架标记 |
 | `data/lastfm/scrobbles.json` | 听歌记录 |
 | `data/lastfm/loved.json` | 红心歌曲 |

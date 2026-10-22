@@ -52,7 +52,7 @@ Secrets / Variables 配在私有仓，不要写进本仓。
 | NeoDB | `NEODB_TOKEN` | `data/neodb/shelf.json` |
 | Last.fm | `LASTFM_API_KEY`、`LASTFM_USER` | `data/lastfm/scrobbles.json`、`top.json`、`loved.json` |
 | ListenBrainz | `LISTENBRAINZ_USER` | `data/listenbrainz/listens.json`、`top.json`、`feedback.json`、`listening-activity.json` |
-| 佳明中国 | `GARMIN_SECRET_STRING_CN` | `data/workouts/fit/`、`data/workouts/activities.json`、`data/health/daily.json` |
+| 佳明中国 | `GARMIN_SECRET_STRING_CN` | `data/workouts/fit/`、`data/workouts/activities.json`、`data/workouts/splits/`、`data/health/daily.json` |
 | 本地 TCX / GPX | 无 | `data/workouts/tcx/`、`data/workouts/gpx/`、`data/workouts/activities.json` |
 
 ## 消费端
@@ -160,6 +160,7 @@ python scripts/listenbrainz.py
 | `scripts/listenbrainz.py` | 可用 `--only listens`、`top`、`feedback` 或 `activity` 限定内容 |
 | `vendor/run_page/garmin_sync.py` | 使用 `--is-cn --fit` 从佳明中国下载 FIT |
 | `scripts/export_activities.py` | 从 FIT / 缓存写出 `activities.json` 和脱敏的 `activities.redacted.json` |
+| `vendor/run_page/gen_splits.py` | 从 FIT 生成 `data/workouts/splits/{run_id}.json`（无坐标、无逐秒序列） |
 | `scripts/garmin_health.py` | 拉取每日健康指标，写出 `data/health/daily.json` |
 | `scripts/health_daily.py` | 把当天训练挂到日档案；`--self-check` 不联网 |
 
@@ -170,6 +171,7 @@ python scripts/health_daily.py --self-check
 python scripts/garmin_health.py --self-check
 python vendor/run_page/garmin_sync.py "会话串" --is-cn --fit
 python scripts/export_activities.py
+python vendor/run_page/gen_splits.py --fit-only --fit-dir data/workouts/fit --out data/workouts/splits --activities data/workouts/activities.json
 python scripts/garmin_health.py "会话串" --is-cn
 ```
 
@@ -208,7 +210,7 @@ python scripts/sync_run_page.py
 git diff vendor/run_page
 ```
 
-默认源目录 `../running_page`，可用 `--source`、`--dry-run`。不会覆盖 `vendor/run_page/config.py`。
+默认源目录 `../running_page`，可用 `--source`、`--dry-run`。不会覆盖 `vendor/run_page/config.py`。同步清单含 `gen_splits.py`（从 FIT 生成无 GPS 的分段摘要 JSON）。
 
 ### 代码检查
 

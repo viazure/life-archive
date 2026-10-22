@@ -82,6 +82,19 @@ runs:
           LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
         run: python "${{ steps.roots.outputs.code_root }}/scripts/export_activities.py"
 
+      - name: Generate splits
+        if: steps.garmin.outputs.configured == 'true'
+        shell: bash
+        env:
+          LIFE_DATA_ROOT: ${{ env.LIFE_DATA_ROOT }}
+        run: |
+          root="${LIFE_DATA_ROOT:-$GITHUB_WORKSPACE}"
+          python "${{ steps.roots.outputs.code_root }}/vendor/run_page/gen_splits.py" \
+            --fit-only \
+            --fit-dir "$root/data/workouts/fit" \
+            --out "$root/data/workouts/splits" \
+            --activities "$root/data/workouts/activities.json"
+
       - name: Commit workouts archive
         if: steps.garmin.outputs.configured == 'true'
         shell: bash
