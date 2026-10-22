@@ -1,6 +1,6 @@
 name: sync garmin
 
-# Sync code copied from running_page @ 54c7e24e91f7d1cdd098c951de91638ff7bd8243
+# Sync code copied from running_page @ 20a9d343601f06df320b5efa9bff498255183a1b
 
 on:
   schedule:

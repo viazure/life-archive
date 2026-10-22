@@ -1,6 +1,6 @@
 The files in this directory are copied from
 https://github.com/viazure/running_page
-commit 54c7e24e91f7d1cdd098c951de91638ff7bd8243
+commit d26249eed6dd6d84ce0dbe9aba750d9b6ee2f795
 and are covered by the MIT License in LICENSE
 (Copyright (c) 2025 yihong).
 
@@ -11,3 +11,4 @@ garmin_sync.py notes that most of its code comes from
 https://github.com/cyberjunky/python-garminconnect
 
 Refresh with: python scripts/sync_run_page.py
+config.py is local to life-data and is not refreshed.
