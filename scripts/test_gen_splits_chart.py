@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Unit tests for distance vs time-bucketed split charts. No FIT files required."""
+
 from __future__ import annotations
 
 import sys
@@ -11,7 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "vendor" / "run_pag
 import gen_splits  # noqa: E402
 
 
-def _rec(t: float, d: float | None, hr: float | None, speed: float | None = None) -> dict:
+def _rec(
+    t: float, d: float | None, hr: float | None, speed: float | None = None
+) -> dict:
     return {
         "t": t,
         "d": d,
@@ -105,7 +108,8 @@ class TestAnalyzeMessagesIndoor(unittest.TestCase):
                 }
             ],
             "record_mesgs": [
-                {"timestamp": 1000 + i, "distance": 0, "heart_rate": 80 + i} for i in range(120)
+                {"timestamp": 1000 + i, "distance": 0, "heart_rate": 80 + i}
+                for i in range(120)
             ],
             "event_mesgs": [],
         }
@@ -117,7 +121,9 @@ class TestAnalyzeMessagesIndoor(unittest.TestCase):
 
     def test_missing_total_distance_still_analyzes(self):
         msgs = {
-            "session_mesgs": [{"start_time": 1000, "total_timer_time": 30, "sport": "hiit"}],
+            "session_mesgs": [
+                {"start_time": 1000, "total_timer_time": 30, "sport": "hiit"}
+            ],
             "record_mesgs": [
                 {"timestamp": 1000 + i, "heart_rate": 100 + i} for i in range(30)
             ],
