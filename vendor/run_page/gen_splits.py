@@ -19,7 +19,11 @@ Usage:
     python run_page/gen_splits.py --fit-dir DIR ...  # other folders
     python run_page/gen_splits.py --force            # rebuild everything
 
-After changing extraction, rebuild with ``--force`` (CI uses ``--fit-only``).
+After changing extraction, bump ``GENERATOR_VERSION`` (CI uses ``--fit-only``
+and no ``--force``; a stale ``.sources.json`` would otherwise skip files
+whose FIT mtimes have not changed). ``--force`` still rebuilds everything.
+Indoor / zero-distance sessions keep their records and get a time-bucketed
+chart; distance-bucketed charts for outdoor activities are unchanged.
 Do not commit private FIT files or ``public/splits/``.
 """
 
@@ -36,6 +40,10 @@ FIT_EPOCH_S = 631065600  # 1989-12-31T00:00:00Z
 SCHEMA_VERSION = 1
 MAX_CHART_POINTS = 200
 MIN_CHART_STEP_M = 50.0
+MIN_CHART_STEP_S = 1.0
+# Bump when chart extraction changes so run() rebuilds even if FIT mtimes
+# are unchanged. CI calls gen_splits with --fit-only and no --force.
+GENERATOR_VERSION = 2
 ELEV_HYSTERESIS_M = 1.0
 # Isolated running-cadence spikes (watch glitches) sit well above this.
 CADENCE_SPIKE_SPM = 220
@@ -379,10 +387,15 @@ def _records(msgs: dict, per_leg: bool, timer: _Timer) -> list[dict]:
     last_d = -1.0
     for rec in msgs.get("record_mesgs", []) or []:
         ts = _num(rec.get("timestamp"))
-        d = _num(rec.get("distance"))
-        if ts is None or d is None:
+        if ts is None:
             continue
-        d = max(d, last_d)  # distance must be monotonic
+        d = _num(rec.get("distance"))
+        # Indoor equipment often stores distance as 0 or omits it. Keep the
+        # record so HR can be charted by time; do not drop on missing d.
+        if d is None:
+            d = last_d if last_d >= 0 else 0.0
+        else:
+            d = max(d, last_d if last_d >= 0 else d)
         last_d = d
         alt = _num(rec.get("enhanced_altitude"))
         if alt is None:
@@ -503,9 +516,10 @@ def build_km_splits(recs: list[dict], split_m: float = 1000.0) -> list[dict]:
 def build_chart(recs: list[dict]) -> dict | None:
     if len(recs) < 2:
         return None
-    total = recs[-1]["d"] - recs[0]["d"]
+    ds = [r["d"] for r in recs if r.get("d") is not None]
+    total = (ds[-1] - ds[0]) if len(ds) >= 2 else 0.0
     if total <= 0:
-        return None
+        return _build_chart_by_time(recs)
     step = max(MIN_CHART_STEP_M, total / MAX_CHART_POINTS)
     keys = ("hr", "cad", "power", "alt", "gct", "vo", "vr", "temp")
     series: dict[str, list] = {k: [] for k in ("d", "t", "pace", *keys)}
@@ -549,6 +563,61 @@ def build_chart(recs: list[dict]) -> dict | None:
     if fresh:
         flush(bucket)
     # Drop series without any value to keep files small.
+    return {
+        k: v for k, v in series.items() if k == "d" or any(x is not None for x in v)
+    }
+
+
+def _build_chart_by_time(recs: list[dict]) -> dict | None:
+    # Bucket by moving time when distance does not advance (indoor).
+    # Same series keys and cap as the distance chart.
+    total_t = recs[-1]["t"] - recs[0]["t"]
+    if total_t <= 0:
+        return None
+    step = max(MIN_CHART_STEP_S, total_t / MAX_CHART_POINTS)
+    keys = ("hr", "cad", "power", "alt", "gct", "vo", "vr", "temp")
+    series: dict[str, list] = {k: [] for k in ("d", "t", "pace", *keys)}
+    bucket: list[dict] = []
+    edge = recs[0]["t"] + step
+    t_origin = recs[0]["t"]
+
+    def flush(rows):
+        if not rows:
+            return
+        d0, d1 = rows[0].get("d"), rows[-1].get("d")
+        t0, t1 = rows[0]["t"], rows[-1]["t"]
+        sp = [r["speed"] for r in rows if r.get("speed")]
+        speed = (
+            (d1 - d0) / (t1 - t0)
+            if t1 > t0 and d0 is not None and d1 is not None and d1 > d0
+            else _mean(sp)
+        )
+        mid_d = 0.0
+        if d0 is not None or d1 is not None:
+            mid_d = ((d0 or 0.0) + (d1 or 0.0)) / 2
+        series["d"].append(_r(mid_d / 1000, 3))
+        series["t"].append(_r((t0 + t1) / 2 - t_origin, 1))
+        series["pace"].append(_r(_pace(speed), 0))
+        for k in keys:
+            vals = [r[k] for r in rows if r.get(k) is not None]
+            v = _mean(vals)
+            if k == "vo" and v is not None:
+                v /= 10
+            nd = 1 if k in ("alt", "vo", "vr") else 0
+            series[k].append(_r(v, nd))
+
+    fresh = 0
+    for r in recs:
+        while r["t"] >= edge:
+            if fresh:
+                flush(bucket)
+                bucket = [bucket[-1]]
+                fresh = 0
+            edge += step
+        bucket.append(r)
+        fresh += 1
+    if fresh:
+        flush(bucket)
     return {
         k: v for k, v in series.items() if k == "d" or any(x is not None for x in v)
     }
@@ -746,7 +815,7 @@ def analyze_messages(msgs: dict) -> dict | None:
         return None
     session = sessions[0]
     start = _num(session.get("start_time"))
-    if start is None or _num(session.get("total_distance")) is None:
+    if start is None:
         return None
     sport = session.get("sport") if isinstance(session.get("sport"), str) else "unknown"
     sub_sport = (
@@ -1210,6 +1279,8 @@ def run(
     # TCX (has device distance) over GPX.
     claimed: dict[int, int] = {}
     for key, v in sources.items():
+        if key == "__generator__":
+            continue
         rid = v.get("run_id") if isinstance(v, dict) else None
         if rid is not None:
             r = _SOURCE_RANK[kind_of(key)]
@@ -1225,8 +1296,13 @@ def run(
         rank = _SOURCE_RANK[kind]
         mtime = os.path.getmtime(path)
         known_src = sources.get(key)
+        gen_ok = (
+            isinstance(sources.get("__generator__"), dict)
+            and sources["__generator__"].get("version") == GENERATOR_VERSION
+        )
         if (
             not force
+            and gen_ok
             and known_src
             and known_src.get("mtime") == mtime
             and (
@@ -1273,6 +1349,7 @@ def run(
     )
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as f:
         json.dump(ids, f, separators=(",", ":"))
+    sources["__generator__"] = {"version": GENERATOR_VERSION}
     with open(stamp_file, "w", encoding="utf-8") as f:
         json.dump(sources, f, separators=(",", ":"))
     print(
